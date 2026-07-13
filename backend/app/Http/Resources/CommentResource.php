@@ -18,6 +18,7 @@ class CommentResource extends JsonResource
                 'first_name' => $this->user->first_name,
                 'last_name' => $this->user->last_name,
                 'full_name' => $this->user->first_name . ' ' . $this->user->last_name,
+                'avatar' => $this->user->avatar,
             ],
             'likes_count' => $this->likes_count ?? 0,
             'replies_count' => $this->replies_count ?? 0,

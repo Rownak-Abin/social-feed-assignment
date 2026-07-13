@@ -4,7 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
-export default function Navbar() {
+type NavbarProps = {
+    userName: string;
+};
+
+
+export default function Navbar({ userName }: NavbarProps) {
     const [showNotification, setShowNotification] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
 
@@ -707,7 +712,7 @@ export default function Navbar() {
                         <div className="_header_nav_dropdown">
 
                             <p className="_header_nav_para">
-                                Dylan Field
+                                {userName}
                             </p>
 
                             <button
@@ -751,9 +756,8 @@ export default function Navbar() {
                                     </div>
 
                                     <div className="_nav_profile_dropdown_info_txt">
-
                                         <h4 className="_nav_dropdown_title">
-                                            Dylan Field
+                                            {userName}
                                         </h4>
 
                                         <Link

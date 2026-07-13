@@ -5,6 +5,9 @@ interface RawUser {
     id?: number;
     user_id?: number;
     name?: string;
+    first_name?: string;
+    last_name?: string;
+    full_name?: string;
     avatar?: string;
 }
 
@@ -20,19 +23,13 @@ interface RawComment {
     likes?: number;
 }
 
-interface RawImage {
-    url?: string;
-    path?: string;
-}
-
 interface RawPost {
     id: number;
     user?: RawUser;
     user_id?: number;
     content?: string;
     image?: string;
-    images?: RawImage[];
-    privacy?: "public" | "friends";
+    visibility?: "public" | "private";
     created_at?: string;
     createdAt?: string;
     likes_count?: number;
@@ -53,32 +50,79 @@ interface PaginatedResponse<T> {
     };
 }
 
+// ---- Helpers ----
+
+const API_ORIGIN =
+    process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") ?? "";
+
+function resolveImageUrl(path?: string): string | undefined {
+    if (!path) return undefined;
+    if (path.startsWith("http")) return path;
+
+    const cleanPath = path.startsWith("storage/") ? path : `storage/${path}`;
+
+    return `${API_ORIGIN}/${cleanPath}`;
+}
+
+function formatRelativeTime(dateStr?: string): string {
+    if (!dateStr) return "";
+
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return date.toLocaleDateString();
+}
+
+// ---- Normalizers ----
+
 function normalizeComment(raw: RawComment): Comment {
     return {
         id: raw.id,
         user: {
             id: raw.user?.id ?? raw.user_id ?? 0,
-            name: raw.user?.name ?? "Unknown",
+            name:
+                raw.user?.full_name ??
+                (raw.user?.first_name && raw.user?.last_name
+                    ? `${raw.user.first_name} ${raw.user.last_name}`
+                    : raw.user?.name) ??
+                "Unknown",
             avatar: raw.user?.avatar ?? "/assets/images/comment_img.png",
         },
         comment: raw.comment ?? raw.content ?? "",
-        createdAt: raw.created_at ?? raw.createdAt ?? "",
+        createdAt: formatRelativeTime(raw.created_at ?? raw.createdAt),
         likes: raw.likes_count ?? raw.likes ?? 0,
     };
 }
-
 export function normalizePost(raw: RawPost): Post {
     return {
         id: raw.id,
         user: {
             id: raw.user?.id ?? raw.user_id ?? 0,
-            name: raw.user?.name ?? "Unknown",
+            name:
+                raw.user?.full_name ??
+                (raw.user?.first_name && raw.user?.last_name
+                    ? `${raw.user.first_name} ${raw.user.last_name}`
+                    : raw.user?.name) ??
+                "Unknown",
             avatar: raw.user?.avatar ?? "/assets/images/txt_img.png",
         },
         content: raw.content ?? "",
-        image: raw.image ?? raw.images?.[0]?.url ?? raw.images?.[0]?.path ?? undefined,
-        privacy: raw.privacy ?? "public",
-        createdAt: raw.created_at ?? raw.createdAt ?? "",
+        image: resolveImageUrl(raw.image),
+        visibility: raw.visibility ?? "public",
+        createdAt: formatRelativeTime(raw.created_at ?? raw.createdAt),
         reactions: raw.likes_count ?? raw.reactions ?? 0,
         commentsCount: raw.comments_count ?? raw.comments?.length ?? 0,
         sharesCount: raw.shares_count ?? 0,
@@ -133,6 +177,18 @@ export async function addComment(postId: number, content: string) {
     );
     const raw = "data" in res.data && res.data.data ? res.data.data : (res.data as RawComment);
     return normalizeComment(raw);
+}
+
+export async function getComments(postId: number) {
+    const res = await axiosInstance.get<
+        { data?: RawComment[] } | RawComment[]
+    >(`/post/${postId}/comments`);
+
+    const rawComments = Array.isArray(res.data)
+        ? res.data
+        : res.data?.data ?? [];
+
+    return rawComments.map(normalizeComment);
 }
 
 export async function replyToComment(commentId: number, content: string) {

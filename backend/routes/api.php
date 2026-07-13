@@ -23,6 +23,7 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/', [PostController::class, 'store'])->name('store');
         Route::get('/{post}', [PostController::class, 'show'])->name('show');
 
+        Route::get('/{post}/comments', [CommentController::class, 'index'])->name('comments.index');
         Route::post('/{post}/comments', [CommentController::class, 'store'])->name('comments.store');
 
         Route::post('/{post}/like', [LikeController::class, 'likePost'])->name('like');

@@ -1,4 +1,4 @@
-import axiosInstance from "@/lib/axios";
+import axiosInstance from "../lib/axios";
 
 export interface RegisterPayload {
     first_name: string;
@@ -13,6 +13,16 @@ export interface LoginPayload {
     password: string;
 }
 
+interface LoginResponse {
+    access_token?: string;
+    token?: string;
+    data?: {
+        access_token?: string;
+        token?: string;
+    };
+    [key: string]: unknown;
+}
+
 const authService = {
     register: async (data: RegisterPayload) => {
         const response = await axiosInstance.post("auth/register", data);
@@ -20,7 +30,20 @@ const authService = {
     },
 
     login: async (data: LoginPayload) => {
-        const response = await axiosInstance.post("auth/login", data);
+        const response = await axiosInstance.post<LoginResponse>("auth/login", data);
+
+        const token =
+            response.data?.access_token ??
+            response.data?.token ??
+            response.data?.data?.access_token ??
+            response.data?.data?.token;
+
+        if (token) {
+            localStorage.setItem("token", token);
+        } else {
+            console.warn("Login response এ token পাওয়া যায়নি:", response.data);
+        }
+
         return response.data;
     },
 
@@ -30,8 +53,12 @@ const authService = {
     },
 
     logout: async () => {
-        const response = await axiosInstance.post("auth/logout");
-        return response.data;
+        try {
+            const response = await axiosInstance.post("auth/logout");
+            return response.data;
+        } finally {
+            localStorage.removeItem("token");
+        }
     },
 };
 

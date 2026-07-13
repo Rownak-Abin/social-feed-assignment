@@ -16,16 +16,17 @@ export default function CreatePost({
     const imageInputRef = useRef<HTMLInputElement>(null);
 
     const [content, setContent] = useState("");
-    const [images, setImages] = useState<File[]>([]);
+    const [image, setImage] = useState<File | null>(null);
+    const [isPublic, setIsPublic] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const handleImageChange = (
         e: ChangeEvent<HTMLInputElement>
     ) => {
-        if (!e.target.files) return;
+        if (!e.target.files || e.target.files.length === 0) return;
 
-        setImages(Array.from(e.target.files));
+        setImage(e.target.files[0]);
     };
 
     const handleSubmit = async (
@@ -33,15 +34,16 @@ export default function CreatePost({
     ) => {
         e.preventDefault();
 
-        if (!content.trim() && images.length === 0) return;
+        if (!content.trim() && !image) return;
 
         const formData = new FormData();
 
         formData.append("content", content);
+        formData.append("visibility", isPublic ? "public" : "private");
 
-        images.forEach((image) => {
-            formData.append("images[]", image);
-        });
+        if (image) {
+            formData.append("image", image);
+        }
 
         try {
             setLoading(true);
@@ -51,7 +53,8 @@ export default function CreatePost({
             onPostCreated?.(newPost);
 
             setContent("");
-            setImages([]);
+            setImage(null);
+            setIsPublic(true);
 
             if (imageInputRef.current) {
                 imageInputRef.current.value = "";
@@ -118,37 +121,64 @@ export default function CreatePost({
 
                 </div>
 
+                {/* Public/Private toggle */}
+                <div
+                    className="d-flex align-items-center gap-2"
+                    style={{ flexShrink: 0 }}
+                >
+                    <span
+                        style={{
+                            fontSize: "13px",
+                            color: "#666",
+                            minWidth: "40px",
+                        }}
+                    >
+                        {isPublic ? "Public" : "Private"}
+                    </span>
+
+                    <div className="form-check form-switch m-0">
+                        <input
+                            className="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id="visibility-toggle"
+                            checked={isPublic}
+                            onChange={(e) => setIsPublic(e.target.checked)}
+                            style={{ cursor: "pointer", width: "40px", height: "20px" }}
+                        />
+                    </div>
+                </div>
+
             </div>
 
             <input
                 ref={imageInputRef}
                 type="file"
                 accept="image/*"
-                multiple
                 hidden
                 onChange={handleImageChange}
             />
 
-            {images.length > 0 && (
+            {image && (
 
                 <div className="mt-3">
 
-                    <strong>
-                        Selected Images ({images.length})
-                    </strong>
-
                     <div className="d-flex flex-wrap gap-2 mt-2">
 
-                        {images.map((image, index) => (
-
-                            <div
-                                key={index}
-                                className="border rounded px-2 py-1"
+                        <div className="border rounded px-2 py-1 d-flex align-items-center gap-2">
+                            {image.name}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setImage(null);
+                                    if (imageInputRef.current) {
+                                        imageInputRef.current.value = "";
+                                    }
+                                }}
                             >
-                                {image.name}
-                            </div>
-
-                        ))}
+                                ✕
+                            </button>
+                        </div>
 
                     </div>
 

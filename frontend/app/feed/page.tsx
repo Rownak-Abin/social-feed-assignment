@@ -9,17 +9,38 @@ import PostCard from "../../components/feed/PostCard";
 import RightSidebar from "../../components/feed/Friends";
 import type { Post } from "../../components/feed/PostCard";
 import { getPosts } from "../../src/services/post.service";
+import authService from "../../src/services/auth.service";
 
 export default function FeedPage() {
     const [posts, setPosts] = useState<Post[]>([]);
+    const [userName, setUserName] = useState("");
 
     useEffect(() => {
-        getPosts(1).then(({ posts }) => setPosts(posts));
+        const loadData = async () => {
+            try {
+                const [{ posts }, me] = await Promise.all([
+                    getPosts(1),
+                    authService.me(),
+                ]);
+
+                setPosts(posts);
+
+                const user = me.data ?? me;
+
+                setUserName(
+                    `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim()
+                );
+            } catch (error) {
+                console.error(error);
+            }
+        };
+
+        loadData();
     }, []);
 
     return (
         <>
-            <Navbar />
+            <Navbar userName={userName} />
 
             <main className="_layout_main_wrapper _padd_t20 _padd_b20">
                 <div className="container _custom_container">

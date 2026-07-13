@@ -12,6 +12,33 @@ use Illuminate\Http\JsonResponse;
 
 class CommentController extends Controller
 {
+    public function index(Post $post): JsonResponse
+    {
+        if (
+            $post->visibility === 'private'
+            && $post->user_id !== auth('api')->id()
+        ) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $comments = Comment::query()
+            ->where('post_id', $post->id)
+            ->whereNull('parent_id')
+            ->with([
+                'user',
+                'replies.user',
+            ])
+            ->withCount([
+                'likes',
+                'replies',
+            ])
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'data' => CommentResource::collection($comments),
+        ]);
+    }
 
     public function store(CommentRequest $request, Post $post): JsonResponse
     {

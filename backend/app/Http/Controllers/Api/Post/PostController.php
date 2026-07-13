@@ -54,12 +54,19 @@ class PostController extends Controller
         ], 201);
     }
 
-    public function show(Post $post): PostResource
+    public function show(Post $post)
     {
-        abort_if($post->visibility === 'private' && $post->user_id !== auth('api')->id(), 403);
+        if ($post->visibility === 'private' && $post->user_id !== auth('api')->id()) {
+            abort(403, 'Unauthorized.');
+        }
 
-        $post->load('user')->loadCount(['likes', 'comments']);
-        $post->is_liked = $post->likes()->where('user_id', auth('api')->id())->exists();
+        $post->load(['user', 'comments.user'])
+            ->loadCount(['likes', 'comments'])
+            ->loadExists([
+                'likes as is_liked' => function ($query) {
+                    $query->where('user_id', auth('api')->id());
+                }
+            ]);
 
         return new PostResource($post);
     }
