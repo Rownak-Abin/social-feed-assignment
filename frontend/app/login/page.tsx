@@ -1,7 +1,82 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import authService from "@/services/auth.service";
+import { useForm } from "react-hook-form";
+import axios from "axios";
+
+type LoginForm = {
+    email: string;
+    password: string;
+    remember: boolean;
+};
 
 export default function LoginPage() {
+    const {
+        register,
+        handleSubmit,
+        setError,
+        formState: { errors, isSubmitting },
+    } = useForm<LoginForm>({
+        defaultValues: {
+            email: "",
+            password: "",
+            remember: true,
+        },
+    });
+
+    const router = useRouter();
+
+    const onSubmit = async (data: LoginForm) => {
+        try {
+            await authService.login({
+                email: data.email,
+                password: data.password,
+            });
+
+            router.push("/feed");
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const status = error.response?.status;
+
+                if (status === 422) {
+                    const apiErrors = error.response?.data?.errors as
+                        | Record<string, string[]>
+                        | undefined;
+
+                    if (apiErrors) {
+                        Object.entries(apiErrors).forEach(([field, messages]) => {
+                            setError(field as keyof LoginForm, {
+                                type: "server",
+                                message: messages[0],
+                            });
+                        });
+                        return;
+                    }
+                }
+
+                if (status === 401) {
+                    setError("email", {
+                        type: "server",
+                        message: "",
+                    });
+                    setError("password", {
+                        type: "server",
+                        message: "Invalid email or password.",
+                    });
+                    return;
+                }
+
+                alert(error.response?.data?.message || "Login failed.");
+                return;
+            }
+
+            alert("Something went wrong.");
+        }
+    };
+
     return (
         <section className="_social_login_wrapper _layout_main_wrapper">
             <div className="_shape_one">
@@ -98,7 +173,10 @@ export default function LoginPage() {
                                     Login to your account
                                 </h4>
 
-                                <form className="_social_login_form">
+                                <form
+                                    className="_social_login_form"
+                                    onSubmit={handleSubmit(onSubmit)}
+                                >
 
                                     <div className="row">
 
@@ -112,7 +190,16 @@ export default function LoginPage() {
                                                 <input
                                                     type="email"
                                                     className="form-control _social_login_input"
+                                                    {...register("email", {
+                                                        required: "Email is required",
+                                                    })}
                                                 />
+
+                                                {errors.email && (
+                                                    <small className="text-danger">
+                                                        {errors.email.message}
+                                                    </small>
+                                                )}
 
                                             </div>
                                         </div>
@@ -127,7 +214,16 @@ export default function LoginPage() {
                                                 <input
                                                     type="password"
                                                     className="form-control _social_login_input"
+                                                    {...register("password", {
+                                                        required: "Password is required",
+                                                    })}
                                                 />
+
+                                                {errors.password && (
+                                                    <small className="text-danger">
+                                                        {errors.password.message}
+                                                    </small>
+                                                )}
 
                                             </div>
                                         </div>
@@ -141,9 +237,9 @@ export default function LoginPage() {
 
                                                 <input
                                                     className="form-check-input _social_login_form_check_input"
-                                                    type="radio"
+                                                    type="checkbox"
                                                     id="remember"
-                                                    defaultChecked
+                                                    {...register("remember")}
                                                 />
 
                                                 <label
@@ -158,9 +254,12 @@ export default function LoginPage() {
 
                                         <div className="col-lg-6 col-xl-6 col-md-6 col-sm-12">
                                             <div className="_social_login_form_left">
-                                                <p className="_social_login_form_left_para">
+                                                <Link
+                                                    href="/forgot-password"
+                                                    className="_social_login_form_left_para"
+                                                >
                                                     Forgot password?
-                                                </p>
+                                                </Link>
                                             </div>
                                         </div>
 
@@ -173,10 +272,11 @@ export default function LoginPage() {
                                             <div className="_social_login_form_btn _mar_t40 _mar_b60">
 
                                                 <button
-                                                    type="button"
+                                                    type="submit"
+                                                    disabled={isSubmitting}
                                                     className="_social_login_form_btn_link _btn1"
                                                 >
-                                                    Login now
+                                                    {isSubmitting ? "Logging in..." : "Login now"}
                                                 </button>
 
                                             </div>

@@ -2,13 +2,15 @@
 
 import { ChangeEvent, FormEvent, useRef, useState } from "react";
 import Image from "next/image";
+import { createPost } from "../../src/services/post.service";
+import type { Post } from "./PostCard";
 
 interface CreatePostProps {
-    onSubmit?: (formData: FormData) => Promise<void>;
+    onPostCreated?: (post: Post) => void;
 }
 
 export default function CreatePost({
-    onSubmit,
+    onPostCreated,
 }: CreatePostProps) {
 
     const imageInputRef = useRef<HTMLInputElement>(null);
@@ -16,6 +18,7 @@ export default function CreatePost({
     const [content, setContent] = useState("");
     const [images, setImages] = useState<File[]>([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleImageChange = (
         e: ChangeEvent<HTMLInputElement>
@@ -30,6 +33,8 @@ export default function CreatePost({
     ) => {
         e.preventDefault();
 
+        if (!content.trim() && images.length === 0) return;
+
         const formData = new FormData();
 
         formData.append("content", content);
@@ -40,12 +45,10 @@ export default function CreatePost({
 
         try {
             setLoading(true);
+            setError(null);
 
-            if (onSubmit) {
-                await onSubmit(formData);
-            } else {
-                console.log([...formData.entries()]);
-            }
+            const newPost = await createPost(formData);
+            onPostCreated?.(newPost);
 
             setContent("");
             setImages([]);
@@ -54,6 +57,9 @@ export default function CreatePost({
                 imageInputRef.current.value = "";
             }
 
+        } catch (err) {
+            console.error(err);
+            setError("পোস্ট করা যায়নি, আবার চেষ্টা করো।");
         } finally {
             setLoading(false);
         }
@@ -148,6 +154,12 @@ export default function CreatePost({
 
                 </div>
 
+            )}
+
+            {error && (
+                <p className="text-danger mt-2 mb-0">
+                    {error}
+                </p>
             )}
 
             {/* Desktop Toolbar */}

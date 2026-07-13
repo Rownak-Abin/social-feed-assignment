@@ -1,7 +1,80 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import authService from "@/services/auth.service";
+import { useForm } from "react-hook-form";
+import axios, { AxiosError } from "axios";
+
+type RegisterForm = {
+    first_name: string;
+    last_name: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+};
 
 export default function RegisterPage() {
+    const {
+        register,
+        handleSubmit,
+        watch,
+        setError,
+        formState: { errors, isSubmitting },
+    } = useForm<RegisterForm>({
+        defaultValues: {
+            first_name: "",
+            last_name: "",
+            email: "",
+            password: "",
+            password_confirmation: "",
+        },
+    });
+
+    const password = watch("password");
+    const router = useRouter();
+
+    const onSubmit = async (data: RegisterForm) => {
+        try {
+            await authService.register({
+                first_name: data.first_name,
+                last_name: data.last_name,
+                email: data.email,
+                password: data.password,
+                password_confirmation: data.password_confirmation,
+            });
+
+            alert("Registration successful.");
+            router.push("/login");
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const status = error.response?.status;
+
+                if (status === 422) {
+                    const apiErrors = error.response?.data?.errors as
+                        | Record<string, string[]>
+                        | undefined;
+
+                    if (apiErrors) {
+                        Object.entries(apiErrors).forEach(([field, messages]) => {
+                            setError(field as keyof RegisterForm, {
+                                type: "server",
+                                message: messages[0],
+                            });
+                        });
+                        return;
+                    }
+                }
+
+                alert(error.response?.data?.message || "Registration failed.");
+                return;
+            }
+
+            alert("Something went wrong.");
+        }
+    };
+
     return (
         <section className="_social_registration_wrapper _layout_main_wrapper">
             <div className="_shape_one">
@@ -91,16 +164,6 @@ export default function RegisterPage() {
 
                             <div className="_social_registration_content">
 
-                                <div className="_social_registration_right_logo _mar_b28">
-                                    <Image
-                                        src="/assets/images/logo.svg"
-                                        alt="Logo"
-                                        width={170}
-                                        height={60}
-                                        className="_right_logo"
-                                    />
-                                </div>
-
                                 <p className="_social_registration_content_para _mar_b8">
                                     Get Started Now
                                 </p>
@@ -128,9 +191,59 @@ export default function RegisterPage() {
                                     <span>Or</span>
                                 </div>
 
-                                <form className="_social_registration_form">
+                                <form
+                                    className="_social_registration_form"
+                                    onSubmit={handleSubmit(onSubmit)}
+                                >
 
                                     <div className="row">
+
+                                        <div className="col-6">
+                                            <div className="_social_registration_form_input _mar_b14">
+
+                                                <label className="_social_registration_label _mar_b8">
+                                                    First Name
+                                                </label>
+
+                                                <input
+                                                    type="text"
+                                                    className="form-control _social_registration_input"
+                                                    {...register("first_name", {
+                                                        required: "First name is required",
+                                                    })}
+                                                />
+
+                                                {errors.first_name && (
+                                                    <small className="text-danger">
+                                                        {errors.first_name.message}
+                                                    </small>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="col-6">
+                                            <div className="_social_registration_form_input _mar_b14">
+
+                                                <label className="_social_registration_label _mar_b8">
+                                                    Last Name
+                                                </label>
+
+                                                <input
+                                                    type="text"
+                                                    className="form-control _social_registration_input"
+                                                    {...register("last_name", {
+                                                        required: "Last name is required",
+                                                    })}
+                                                />
+
+                                                {errors.last_name && (
+                                                    <small className="text-danger">
+                                                        {errors.last_name.message}
+                                                    </small>
+                                                )}
+
+                                            </div>
+                                        </div>
 
                                         <div className="col-12">
                                             <div className="_social_registration_form_input _mar_b14">
@@ -142,7 +255,16 @@ export default function RegisterPage() {
                                                 <input
                                                     type="email"
                                                     className="form-control _social_registration_input"
+                                                    {...register("email", {
+                                                        required: "Email is required",
+                                                    })}
                                                 />
+
+                                                {errors.email && (
+                                                    <small className="text-danger">
+                                                        {errors.email.message}
+                                                    </small>
+                                                )}
 
                                             </div>
                                         </div>
@@ -157,7 +279,20 @@ export default function RegisterPage() {
                                                 <input
                                                     type="password"
                                                     className="form-control _social_registration_input"
+                                                    {...register("password", {
+                                                        required: "Password is required",
+                                                        minLength: {
+                                                            value: 6,
+                                                            message: "Minimum 6 characters",
+                                                        },
+                                                    })}
                                                 />
+
+                                                {errors.password && (
+                                                    <small className="text-danger">
+                                                        {errors.password.message}
+                                                    </small>
+                                                )}
 
                                             </div>
                                         </div>
@@ -172,7 +307,19 @@ export default function RegisterPage() {
                                                 <input
                                                     type="password"
                                                     className="form-control _social_registration_input"
+                                                    {...register("password_confirmation", {
+                                                        required: "Please confirm password",
+                                                        validate: (value) =>
+                                                            value === password ||
+                                                            "Passwords do not match",
+                                                    })}
                                                 />
+
+                                                {errors.password_confirmation && (
+                                                    <small className="text-danger">
+                                                        {errors.password_confirmation.message}
+                                                    </small>
+                                                )}
 
                                             </div>
                                         </div>
@@ -189,7 +336,9 @@ export default function RegisterPage() {
                                                     className="form-check-input _social_registration_form_check_input"
                                                     type="checkbox"
                                                     id="terms"
-                                                    defaultChecked
+                                                    {...register("terms", {
+                                                        required: true,
+                                                    })}
                                                 />
 
                                                 <label
@@ -212,10 +361,13 @@ export default function RegisterPage() {
                                             <div className="_social_registration_form_btn _mar_t40 _mar_b60">
 
                                                 <button
-                                                    type="button"
+                                                    type="submit"
+                                                    disabled={isSubmitting}
                                                     className="_social_registration_form_btn_link _btn1"
                                                 >
-                                                    Register Now
+                                                    {isSubmitting
+                                                        ? "Registering..."
+                                                        : "Register Now"}
                                                 </button>
 
                                             </div>

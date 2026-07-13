@@ -30,7 +30,7 @@ interface Post {
     commentsCount: number;
     sharesCount: number;
 
-    currentReaction?: "haha" | "like" | null;
+    isLiked?: boolean;
 
     comments: Comment[];
 }
@@ -38,15 +38,12 @@ interface Post {
 interface PostCardProps {
     post: Post;
 
-    onReaction?: (
-        postId: number,
-        reaction: string
-    ) => void;
+    onLikeToggle?: (postId: number) => void;
 
     onComment?: (
         postId: number,
         comment: string
-    ) => void;
+    ) => Promise<void> | void;
 
     onShare?: (
         postId: number
@@ -55,12 +52,27 @@ interface PostCardProps {
 
 export default function PostCard({
     post,
-    onReaction,
+    onLikeToggle,
     onComment,
     onShare,
 }: PostCardProps) {
 
     const [comment, setComment] = useState("");
+    const [submittingComment, setSubmittingComment] = useState(false);
+
+    const handleCommentSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!comment.trim() || submittingComment) return;
+
+        try {
+            setSubmittingComment(true);
+            await onComment?.(post.id, comment);
+            setComment("");
+        } finally {
+            setSubmittingComment(false);
+        }
+    };
 
     return (
         <div className="_feed_inner_timeline_post_area _b_radious6 _padd_b24 _padd_t24 mt-3">
@@ -218,11 +230,9 @@ export default function PostCard({
 
                 <button
                     type="button"
-                    className={`_feed_inner_timeline_reaction_emoji _feed_reaction ${post.currentReaction ? "_feed_reaction_active" : ""
+                    className={`_feed_inner_timeline_reaction_emoji _feed_reaction ${post.isLiked ? "_feed_reaction_active" : ""
                         }`}
-                    onClick={() =>
-                        onReaction?.(post.id, "haha")
-                    }
+                    onClick={() => onLikeToggle?.(post.id)}
                 >
                     <span className="_feed_inner_timeline_reaction_link">
                         <span>😂 Haha</span>
@@ -257,15 +267,7 @@ export default function PostCard({
 
                     <form
                         className="_feed_inner_comment_box_form"
-                        onSubmit={(e) => {
-                            e.preventDefault();
-
-                            if (!comment.trim()) return;
-
-                            onComment?.(post.id, comment);
-
-                            setComment("");
-                        }}
+                        onSubmit={handleCommentSubmit}
                     >
 
                         <div className="_feed_inner_comment_box_content">
@@ -288,6 +290,7 @@ export default function PostCard({
                                     className="form-control _comment_textarea"
                                     placeholder="Write a comment..."
                                     value={comment}
+                                    disabled={submittingComment}
                                     onChange={(e) =>
                                         setComment(e.target.value)
                                     }
