@@ -865,10 +865,26 @@
     line-height: 24px !important;
     color: var(--color6) !important;
 }
-._header_nav_dropdown_btn {
-    border: 1px solid transparent;
-    background: transparent;
-    margin: -3px 0 0 8px;
+._header_nav_logout_btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 0 0 0 12px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 59, 48, 0.12);
+    color: #d93025;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+._header_nav_logout_btn:hover {
+    background: rgba(255, 59, 48, 0.18);
+    transform: translateY(-1px);
 }
 /*------ Desktop Menu End --------*/
 
@@ -3474,8 +3490,12 @@
 ._dark_wrapper ._header_nav_para {
     color:var(--bg2) !important;
 }
-._dark_wrapper ._header_nav_dropdown_btn svg path {
-    fill:var(--bg2);
+._dark_wrapper ._header_nav_logout_btn {
+    color: var(--bg2);
+}
+._dark_wrapper ._header_nav_logout_btn {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.12);
 }
 ._dark_wrapper ._feed_reaction:hover {
     background: #123150;

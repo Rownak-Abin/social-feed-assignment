@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import authService from "../../src/services/auth.service";
 
 type NavbarProps = {
     userName: string;
@@ -12,6 +14,18 @@ type NavbarProps = {
 export default function Navbar({ userName }: NavbarProps) {
     const [showNotification, setShowNotification] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        try {
+            await authService.logout();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            router.push("/login");
+        }
+    };
+
 
     return (
         <nav className="navbar navbar-expand-lg navbar-light _header_nav _padd_t10">
@@ -717,24 +731,29 @@ export default function Navbar({ userName }: NavbarProps) {
 
                             <button
                                 type="button"
-                                className="_header_nav_dropdown_btn _dropdown_toggle"
-                                onClick={() => {
-                                    setShowProfile(!showProfile);
-                                    setShowNotification(false);
-                                }}
+                                onClick={handleLogout}
+                                className="_header_nav_logout_btn"
+                                aria-label="Logout"
+                                title="Logout"
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
-                                    width="10"
-                                    height="6"
+                                    width="20"
+                                    height="20"
                                     fill="none"
-                                    viewBox="0 0 10 6"
+                                    viewBox="0 0 24 24"
                                 >
                                     <path
-                                        fill="#112032"
-                                        d="M5 5l.354.354L5 5.707l-.354-.353L5 5zm4.354-3.646l-4 4-.708-.708 4-4 .708.708zm-4.708 4l-4-4 .708-.708 4 4-.708.708z"
+                                        d="M10 17l1.41-1.41L8.83 13H21v-2H8.83l2.58-2.59L10 7l-5 5 5 5z"
+                                        fill="currentColor"
+                                    />
+                                    <path
+                                        d="M4 4h8v2H4v12h8v2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                                        fill="currentColor"
+                                        opacity="0.7"
                                     />
                                 </svg>
+                                <span>Logout</span>
                             </button>
 
                         </div>
@@ -808,9 +827,16 @@ export default function Navbar({ userName }: NavbarProps) {
                                     </li>
 
                                     <li className="_nav_dropdown_list_item">
-                                        <Link
-                                            href="#"
+                                        <button
+                                            type="button"
+                                            onClick={handleLogout}
                                             className="_nav_dropdown_link"
+                                            style={{
+                                                width: "100%",
+                                                background: "none",
+                                                border: "none",
+                                                textAlign: "left",
+                                            }}
                                         >
                                             <div className="_nav_drop_info">
                                                 <span>🚪</span>
@@ -820,7 +846,7 @@ export default function Navbar({ userName }: NavbarProps) {
                                             <span className="_nav_drop_btn_link">
                                                 ›
                                             </span>
-                                        </Link>
+                                        </button>
                                     </li>
 
                                 </ul>

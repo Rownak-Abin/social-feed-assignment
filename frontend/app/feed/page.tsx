@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "../../components/feed/Navbar";
 import Sidebar from "../../components/feed/Sidebar";
 import StorySection from "../../components/feed/Story";
@@ -14,29 +15,63 @@ import authService from "../../src/services/auth.service";
 export default function FeedPage() {
     const [posts, setPosts] = useState<Post[]>([]);
     const [userName, setUserName] = useState("");
+    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+    const router = useRouter();
 
     useEffect(() => {
-        const loadData = async () => {
-            try {
-                const [{ posts }, me] = await Promise.all([
-                    getPosts(1),
-                    authService.me(),
-                ]);
+        const token = localStorage.getItem("token");
 
-                setPosts(posts);
+        if (!token) {
+            router.replace("/login");
+            return;
+        }
 
-                const user = me.data ?? me;
+        let isMounted = true;
 
-                setUserName(
-                    `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim()
-                );
-            } catch (error) {
-                console.error(error);
-            }
+        authService
+            .me()
+            .then((user) => {
+                if (!isMounted) return;
+
+                if (!user) {
+                    router.replace("/login");
+                    return;
+                }
+
+                const name =
+                    user.full_name ??
+                    (user.first_name && user.last_name
+                        ? `${user.first_name} ${user.last_name}`
+                        : user.name) ??
+                    "User";
+
+                setUserName(name);
+
+                return getPosts(1).then(({ posts }) => {
+                    if (isMounted) {
+                        setPosts(posts);
+                    }
+                });
+            })
+            .catch(() => {
+                if (isMounted) {
+                    router.replace("/login");
+                }
+            })
+            .finally(() => {
+                if (isMounted) {
+                    setIsCheckingAuth(false);
+                }
+            });
+
+        return () => {
+            isMounted = false;
         };
+    }, [router]);
 
-        loadData();
-    }, []);
+    if (isCheckingAuth) {
+        return null;
+    }
 
     return (
         <>

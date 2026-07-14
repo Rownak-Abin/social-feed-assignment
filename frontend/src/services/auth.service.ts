@@ -13,6 +13,16 @@ export interface LoginPayload {
     password: string;
 }
 
+export interface CurrentUser {
+    id: number;
+    first_name?: string;
+    last_name?: string;
+    full_name?: string;
+    name?: string;
+    email?: string;
+    avatar?: string;
+}
+
 interface LoginResponse {
     access_token?: string;
     token?: string;
@@ -20,6 +30,12 @@ interface LoginResponse {
         access_token?: string;
         token?: string;
     };
+    [key: string]: unknown;
+}
+
+interface MeResponse {
+    user?: CurrentUser;
+    data?: CurrentUser;
     [key: string]: unknown;
 }
 
@@ -47,9 +63,19 @@ const authService = {
         return response.data;
     },
 
-    me: async () => {
-        const response = await axiosInstance.get("auth/me");
-        return response.data;
+    me: async (): Promise<CurrentUser | null> => {
+        const response = await axiosInstance.get<MeResponse | CurrentUser>("auth/me");
+
+        const raw =
+            "user" in response.data && response.data.user
+                ? response.data.user
+                : "data" in response.data && response.data.data
+                    ? response.data.data
+                    : (response.data as CurrentUser);
+
+        if (!raw) return null;
+
+        return raw;
     },
 
     logout: async () => {

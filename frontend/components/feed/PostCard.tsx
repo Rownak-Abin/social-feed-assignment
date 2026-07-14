@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { likePost, unlikePost, addComment, replyToComment, getComments } from "../../src/services/post.service";
+import Avatar from "./Avatar";
 
 interface User {
     id: number;
@@ -17,6 +17,12 @@ interface Comment {
     comment: string;
     createdAt: string;
     likes: number;
+    parentId: number | null;
+    replies: Comment[];
+}
+
+interface CommentNode extends Comment {
+    replies: CommentNode[];
 }
 
 interface Post {
@@ -40,6 +46,27 @@ interface PostCardProps {
     post: Post;
 }
 
+// Flat comments -> nested tree, grouped by parentId
+function buildCommentTree(comments: Comment[]): CommentNode[] {
+    const map = new Map<number, CommentNode>();
+    const roots: CommentNode[] = [];
+
+    comments.forEach((c) => {
+        map.set(c.id, { ...c, replies: [] });
+    });
+
+    comments.forEach((c) => {
+        const node = map.get(c.id)!;
+        if (c.parentId && map.has(c.parentId)) {
+            map.get(c.parentId)!.replies.push(node);
+        } else {
+            roots.push(node);
+        }
+    });
+
+    return roots;
+}
+
 export default function PostCard({ post }: PostCardProps) {
 
     const [isLiked, setIsLiked] = useState(!!post.isLiked);
@@ -57,6 +84,8 @@ export default function PostCard({ post }: PostCardProps) {
     const [openReplyId, setOpenReplyId] = useState<number | null>(null);
     const [replyText, setReplyText] = useState("");
     const [submittingReply, setSubmittingReply] = useState(false);
+
+    const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
 
     const handleLikeToggle = async () => {
         if (likeLoading) return;
@@ -83,8 +112,6 @@ export default function PostCard({ post }: PostCardProps) {
     };
 
     const handleCommentsToggle = async () => {
-        console.log("Comment button clicked", post.id);
-
         if (showComments) {
             setShowComments(false);
             return;
@@ -99,8 +126,6 @@ export default function PostCard({ post }: PostCardProps) {
 
             const data = await getComments(post.id);
 
-            console.log(data);
-
             setComments(data);
             setCommentsLoaded(true);
 
@@ -110,6 +135,7 @@ export default function PostCard({ post }: PostCardProps) {
             setLoadingComments(false);
         }
     };
+
     const handleCommentSubmit = async (
         e: React.FormEvent | React.KeyboardEvent
     ) => {
@@ -152,6 +178,135 @@ export default function PostCard({ post }: PostCardProps) {
         }
     };
 
+    // Recursive renderer so replies-of-replies also show up, indented
+    const renderComment = (item: CommentNode, depth = 0) => (
+        <div
+            key={item.id}
+            className="_comment_main"
+            style={depth > 0 ? { marginLeft: Math.min(depth, 3) * 40 } : undefined}
+        >
+
+            <div className="_comment_image">
+
+                <Link href={`/profile/${item.user.id}`}>
+                    <Avatar
+                        name={item.user.name}
+                        avatarUrl={item.user.avatar}
+                        size={depth > 0 ? 34 : 42}
+                        className="_comment_img1"
+                    />
+                </Link>
+
+            </div>
+
+            <div className="_comment_area">
+
+                <div className="_comment_details">
+
+                    <div className="_comment_details_top">
+
+                        <div className="_comment_name">
+
+                            <Link href={`/profile/${item.user.id}`}>
+                                <h4 className="_comment_name_title">
+                                    {item.user.name}
+                                </h4>
+                            </Link>
+
+                        </div>
+
+                    </div>
+
+                    <div className="_comment_status">
+
+                        <p className="_comment_status_text">
+                            <span>{item.comment}</span>
+                        </p>
+
+                    </div>
+
+                    <div className="_comment_reply">
+
+                        <div className="_comment_reply_num">
+
+                            <ul className="_comment_reply_list">
+
+                                <li>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setOpenReplyId((prev) =>
+                                                prev === item.id ? null : item.id
+                                            )
+                                        }
+                                        style={{
+                                            background: "none",
+                                            border: "none",
+                                            padding: 0,
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        <span>Reply.</span>
+                                    </button>
+                                </li>
+
+                                <li>
+                                    <span className="_time_link">
+                                        {item.createdAt}
+                                    </span>
+                                </li>
+
+                            </ul>
+
+                        </div>
+
+                    </div>
+
+                    {openReplyId === item.id && (
+
+                        <form
+                            onSubmit={(e) => handleReplySubmit(e, item.id)}
+                            className="mt-2 d-flex gap-2"
+                        >
+                            <input
+                                type="text"
+                                className="form-control form-control-sm"
+                                placeholder="Write a reply..."
+                                value={replyText}
+                                disabled={submittingReply}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                        handleReplySubmit(e, item.id);
+                                    }
+                                }}
+                                autoFocus
+                            />
+
+                            <button
+                                type="submit"
+                                className="btn btn-primary btn-sm"
+                                disabled={submittingReply || !replyText.trim()}
+                            >
+                                {submittingReply ? "..." : "Send"}
+                            </button>
+                        </form>
+
+                    )}
+
+                    {item.replies.length > 0 && (
+                        <div className="_comment_replies mt-2">
+                            {item.replies.map((reply) => renderComment(reply, depth + 1))}
+                        </div>
+                    )}
+
+                </div>
+
+            </div>
+
+        </div>
+    );
+
     return (
         <div className="_feed_inner_timeline_post_area _b_radious6 _padd_b24 _padd_t24 mt-3">
 
@@ -164,15 +319,12 @@ export default function PostCard({ post }: PostCardProps) {
                         <div className="_feed_inner_timeline_post_box_image">
 
                             <Link href={`/profile/${post.user.id}`}>
-
-                                <Image
-                                    src={post.user.avatar}
-                                    alt={post.user.name}
-                                    width={48}
-                                    height={48}
+                                <Avatar
+                                    name={post.user.name}
+                                    avatarUrl={post.user.avatar}
+                                    size={48}
                                     className="_post_img"
                                 />
-
                             </Link>
 
                         </div>
@@ -219,13 +371,12 @@ export default function PostCard({ post }: PostCardProps) {
 
                     <div className="_feed_inner_timeline_image">
 
-                        <Image
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
                             src={post.image}
                             alt="Post"
-                            width={700}
-                            height={450}
                             className="_time_img"
-                            unoptimized={process.env.NODE_ENV === "development"}
+                            style={{ width: "100%", height: "auto" }}
                         />
 
                     </div>
@@ -325,11 +476,9 @@ export default function PostCard({ post }: PostCardProps) {
 
                             <div className="_feed_inner_comment_box_content_image">
 
-                                <Image
-                                    src="/assets/images/comment_img.png"
-                                    alt=""
-                                    width={42}
-                                    height={42}
+                                <Avatar
+                                    name="You"
+                                    size={42}
                                     className="_comment_img"
                                 />
 
@@ -378,143 +527,13 @@ export default function PostCard({ post }: PostCardProps) {
                         <p className="text-center py-3">Loading comments...</p>
                     )}
 
-                    {!loadingComments && comments.length === 0 && (
+                    {!loadingComments && commentTree.length === 0 && (
                         <p className="text-center py-3">No comments yet.</p>
                     )}
 
-                    {!loadingComments && comments.length > 0 && (
-                        <>
-
-
-                            {comments.map((item) => (
-
-                                <div
-                                    key={item.id}
-                                    className="_comment_main"
-                                >
-
-                                    <div className="_comment_image">
-
-                                        <Link href={`/profile/${item.user.id}`}>
-
-                                            <Image
-                                                src={item.user.avatar}
-                                                alt={item.user.name}
-                                                width={42}
-                                                height={42}
-                                                className="_comment_img1"
-                                            />
-
-                                        </Link>
-
-                                    </div>
-
-                                    <div className="_comment_area">
-
-                                        <div className="_comment_details">
-
-                                            <div className="_comment_details_top">
-
-                                                <div className="_comment_name">
-
-                                                    <Link
-                                                        href={`/profile/${item.user.id}`}
-                                                    >
-                                                        <h4 className="_comment_name_title">
-                                                            {item.user.name}
-                                                        </h4>
-                                                    </Link>
-
-                                                </div>
-
-                                            </div>
-
-                                            <div className="_comment_status">
-
-                                                <p className="_comment_status_text">
-                                                    <span>{item.comment}</span>
-                                                </p>
-
-                                            </div>
-
-                                            <div className="_comment_reply">
-
-                                                <div className="_comment_reply_num">
-
-                                                    <ul className="_comment_reply_list">
-
-                                                        <li>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    setOpenReplyId((prev) =>
-                                                                        prev === item.id ? null : item.id
-                                                                    )
-                                                                }
-                                                                style={{
-                                                                    background: "none",
-                                                                    border: "none",
-                                                                    padding: 0,
-                                                                    cursor: "pointer",
-                                                                }}
-                                                            >
-                                                                <span>Reply.</span>
-                                                            </button>
-                                                        </li>
-
-                                                        <li>
-                                                            <span className="_time_link">
-                                                                {item.createdAt}
-                                                            </span>
-                                                        </li>
-
-                                                    </ul>
-
-                                                </div>
-
-                                            </div>
-
-                                            {openReplyId === item.id && (
-
-                                                <form
-                                                    onSubmit={(e) => handleReplySubmit(e, item.id)}
-                                                    className="mt-2 d-flex gap-2"
-                                                >
-                                                    <input
-                                                        type="text"
-                                                        className="form-control form-control-sm"
-                                                        placeholder="Write a reply..."
-                                                        value={replyText}
-                                                        disabled={submittingReply}
-                                                        onChange={(e) => setReplyText(e.target.value)}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === "Enter" && !e.shiftKey) {
-                                                                handleReplySubmit(e, item.id);
-                                                            }
-                                                        }}
-                                                        autoFocus
-                                                    />
-
-                                                    <button
-                                                        type="submit"
-                                                        className="btn btn-primary btn-sm"
-                                                        disabled={submittingReply || !replyText.trim()}
-                                                    >
-                                                        {submittingReply ? "..." : "Send"}
-                                                    </button>
-                                                </form>
-
-                                            )}
-
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-                            ))}
-                        </>
-                    )}
+                    {!loadingComments &&
+                        commentTree.length > 0 &&
+                        commentTree.map((item) => renderComment(item))}
 
                 </div>
             )}
@@ -526,6 +545,7 @@ export default function PostCard({ post }: PostCardProps) {
 export type {
     User,
     Comment,
+    CommentNode,
     Post,
     PostCardProps,
 };

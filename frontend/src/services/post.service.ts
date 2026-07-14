@@ -21,6 +21,8 @@ interface RawComment {
     createdAt?: string;
     likes_count?: number;
     likes?: number;
+    parent_id?: number | null;
+    replies?: RawComment[];
 }
 
 interface RawPost {
@@ -99,11 +101,13 @@ function normalizeComment(raw: RawComment): Comment {
                     ? `${raw.user.first_name} ${raw.user.last_name}`
                     : raw.user?.name) ??
                 "Unknown",
-            avatar: raw.user?.avatar ?? "/assets/images/comment_img.png",
+            avatar: raw.user?.avatar ?? "",
         },
         comment: raw.comment ?? raw.content ?? "",
         createdAt: formatRelativeTime(raw.created_at ?? raw.createdAt),
         likes: raw.likes_count ?? raw.likes ?? 0,
+        parentId: raw.parent_id ?? null,
+        replies: (raw.replies ?? []).map(normalizeComment),
     };
 }
 export function normalizePost(raw: RawPost): Post {
