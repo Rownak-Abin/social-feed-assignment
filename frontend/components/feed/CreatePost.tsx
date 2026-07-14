@@ -62,7 +62,7 @@ export default function CreatePost({
 
         } catch (err) {
             console.error(err);
-            setError("পোস্ট করা যায়নি, আবার চেষ্টা করো।");
+            setError("Not Posted. Something went wrong");
         } finally {
             setLoading(false);
         }
